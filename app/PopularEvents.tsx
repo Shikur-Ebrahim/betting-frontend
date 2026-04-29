@@ -5,7 +5,7 @@ import { getPopularMatches } from '@/lib/popularity';
 import { toggleBet, getBetslip } from '@/lib/betslip';
 import { extractBestOdds } from '@/lib/odds';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, limit } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 export default function PopularEvents() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -38,8 +38,18 @@ export default function PopularEvents() {
       const preMatchMatches = rankedPool.filter((m) => !isLiveMatch(m));
       const selectedLive = liveMatches.slice(0, 5);
       const selectedPreMatch = preMatchMatches.slice(0, Math.max(0, 10 - selectedLive.length));
+      const merged = [...selectedLive, ...selectedPreMatch];
+      const dedupedByFixture = new Map<number, any>();
+      for (const match of merged) {
+        const fixtureId = Number(match?.fixture?.id);
+        if (!fixtureId) continue;
+        // Prefer live record if the same fixture exists in both collections.
+        if (!dedupedByFixture.has(fixtureId) || isLiveMatch(match)) {
+          dedupedByFixture.set(fixtureId, match);
+        }
+      }
 
-      setMatches([...selectedLive, ...selectedPreMatch]);
+      setMatches(Array.from(dedupedByFixture.values()));
       setLoading(false);
     };
 
@@ -100,6 +110,12 @@ export default function PopularEvents() {
 
   if (loading || matches.length === 0) return null;
 
+  const uniqueMatches = matches.filter((m, idx, arr) => {
+    const id = String(m?.fixture?.id ?? '');
+    if (!id) return false;
+    return arr.findIndex((x) => String(x?.fixture?.id ?? '') === id) === idx;
+  });
+
   return (
     <div className="popular-slider-section">
       <div className="popular-header">
@@ -117,7 +133,7 @@ export default function PopularEvents() {
         </button>
 
         <div className="popular-track" ref={scrollRef}>
-        {matches.map((m) => {
+        {uniqueMatches.map((m) => {
           const isLive = !['NS', 'FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', 'AWD', 'WO', 'TBD'].includes(m.fixture.status.short);
           const matchOdds = oddsMap[m.fixture.id];
           const matchDate = new Date(m.fixture.date);
@@ -126,7 +142,7 @@ export default function PopularEvents() {
           const activeSel = activeSelections[m.fixture.id];
 
           return (
-            <Link key={m.fixture.id} href={`/match/${m.fixture.id}`} className="popular-event-card">
+            <Link key={`${m.fixture.id}-${m.fixture.status.short}`} href={`/match/${m.fixture.id}`} className="popular-event-card">
               <div className="popular-card-body">
                 <div className="card-top-badges">
                   {isLive ? (

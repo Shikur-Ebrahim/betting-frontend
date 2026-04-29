@@ -53,9 +53,9 @@ export default function MatchCard({
 
   useEffect(() => {
     if (initialOdds) {
+      // Use server/parent-provided odds as immediate seed, but keep live subscription active.
       setLocalOdds(initialOdds);
       setLoading(false);
-      return;
     }
 
     const fixtureId = match?.fixture?.id;
@@ -66,8 +66,12 @@ export default function MatchCard({
 
     // Subscribe to real-time odds from Firestore
     const unsubscribe = subscribeToOdds(fixtureId, (data) => {
-      if (data && data.odds) {
-        const bestOdds = extractBestOdds({ bookmakers: data.odds });
+      const oddsSource = data?.bookmakers || data?.odds;
+      if (oddsSource) {
+        const normalized = Array.isArray(oddsSource) && oddsSource[0]?.values
+          ? { odds: oddsSource }
+          : { bookmakers: oddsSource };
+        const bestOdds = extractBestOdds(normalized);
         setLocalOdds(bestOdds);
       }
       setLoading(false);
@@ -87,16 +91,9 @@ export default function MatchCard({
     return statusShort;
   };
 
-  const lockIcon = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ opacity: 0.6 }}>
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-    </svg>
-  );
-
   const display = (key: keyof OddsValues) => {
     if (loading) return <span style={{ opacity: 0.5 }}>...</span>;
-    if (!localOdds || !localOdds[key]) return isLive ? lockIcon : '-';
+    if (!localOdds || !localOdds[key]) return 'N/A';
     return localOdds[key];
   };
 
@@ -150,7 +147,7 @@ export default function MatchCard({
 
         {/* Extra Markets Count */}
         <div className="extra-markets-badge">
-          +{Math.floor(Math.random() * 350) + 100}
+          +{localOdds ? 120 : 0}
         </div>
 
         {/* Odds Row */}

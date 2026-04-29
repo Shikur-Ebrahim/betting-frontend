@@ -19,14 +19,26 @@ function isStatusLive(short: string | undefined): boolean {
 function extractBets(leagueOdds: any): any[] | null {
   if (!leagueOdds) return null;
 
-  // The 'odds' property in Firestore contains the array of bookmakers
-  const bookmakers = leagueOdds.odds || leagueOdds.bookmakers;
-  
-  if (Array.isArray(bookmakers)) {
-    for (const bm of bookmakers) {
-      if (bm.bets && Array.isArray(bm.bets) && bm.bets.length > 0) {
-        return bm.bets;
+  const candidates = [
+    leagueOdds.bookmakers,
+    leagueOdds.odds,
+    leagueOdds.data?.bookmakers,
+    leagueOdds.data?.odds
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+
+    if (candidate.length > 0 && Array.isArray(candidate[0]?.bets)) {
+      for (const bm of candidate) {
+        if (bm?.bets && Array.isArray(bm.bets) && bm.bets.length > 0) {
+          return bm.bets;
+        }
       }
+    }
+
+    if (candidate.length > 0 && candidate[0]?.values) {
+      return candidate;
     }
   }
 
@@ -45,6 +57,7 @@ function MatchDetailsContent() {
   const [standings, setStandings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [oddsLoading, setOddsLoading] = useState(true);
+  const [oddsUpdatedAt, setOddsUpdatedAt] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('odds');
   const [activeSelections, setActiveSelections] = useState<Record<string, string>>({});
 
@@ -112,14 +125,14 @@ function MatchDetailsContent() {
     const unsubOdds = onSnapshot(doc(db, 'odds', id), (docSnap) => {
       if (docSnap.exists()) {
         const leagueOdds = docSnap.data();
+        setOddsUpdatedAt(leagueOdds?.updatedAt || leagueOdds?._updatedAt || null);
         const bets = extractBets(leagueOdds);
         if (bets && bets.length > 0) {
           setOdds({ bookmakers: [{ bets }] });
-        } else {
-          setOdds(null);
         }
-      } else {
-        setOdds(null);
+      } else if (!odds) {
+        // Keep last known odds when snapshot is temporarily missing.
+        setOddsUpdatedAt(null);
       }
       setOddsLoading(false);
     });
@@ -252,6 +265,11 @@ function MatchDetailsContent() {
         )}
         {(!isLive || activeTab === 'odds') && (
           <div className="odds-grid">
+            {!oddsLoading && oddsUpdatedAt && (
+              <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                Odds updated: {new Date(oddsUpdatedAt).toLocaleString()}
+              </div>
+            )}
             {oddsLoading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                 <div className="loader" style={{ margin: '0 auto' }}></div>

@@ -114,6 +114,7 @@ function SidebarContent() {
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '');
   const [discoveryFixtures, setDiscoveryFixtures] = useState<any[]>([]);
   const [allLeaguesFlat, setAllLeaguesFlat] = useState<any[]>([]);
+  const topIds = [2, 39, 140, 135, 78, 61, 3, 848];
 
   const updateSearchParam = (val: string) => {
     setSearchQuery(val);
@@ -136,13 +137,12 @@ function SidebarContent() {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'config', 'leagues_list'), (snap) => {
       if (!snap.exists()) {
-        console.warn("[Sidebar] leagues_list config not found in Firestore");
+        // Config might be missing on fresh DB. We fallback from live fixtures below.
         return;
       }
 
       const allLeagues = snap.data().leagues || [];
       setAllLeaguesFlat(allLeagues);
-      const topIds = [2, 39, 140, 135, 78, 61, 3, 848]; // UCL, EPL, La Liga, etc.
       
       const topLeagues = allLeagues.filter((l: any) => topIds.includes(Number(l.id)));
       const otherLeagues = allLeagues.filter((l: any) => !topIds.includes(Number(l.id)));
@@ -178,6 +178,40 @@ function SidebarContent() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (allLeaguesFlat.length > 0 || discoveryFixtures.length === 0) return;
+
+    const fallbackLeaguesMap = new Map<string, any>();
+    for (const match of discoveryFixtures) {
+      const league = match?.league;
+      const id = Number(league?.id);
+      if (!id) continue;
+      if (!fallbackLeaguesMap.has(String(id))) {
+        fallbackLeaguesMap.set(String(id), {
+          id,
+          name: league?.name || `League ${id}`,
+          country: league?.country || 'Unknown',
+          logo: league?.logo || ''
+        });
+      }
+    }
+
+    const fallbackLeagues = Array.from(fallbackLeaguesMap.values());
+    setAllLeaguesFlat(fallbackLeagues);
+    setItems([
+      {
+        type: 'top_leagues',
+        title: 'Top Leagues',
+        leagues: fallbackLeagues.filter((l: any) => topIds.includes(Number(l.id)))
+      },
+      {
+        type: 'sports',
+        title: 'All Sports',
+        leagues: fallbackLeagues.filter((l: any) => !topIds.includes(Number(l.id)))
+      }
+    ]);
+  }, [allLeaguesFlat.length, discoveryFixtures]);
 
   // Global Sidebar Discovery Search
   useEffect(() => {
@@ -294,14 +328,14 @@ function SidebarContent() {
                 {!isLiveOpen && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, marginTop: 4 }}>
                     <div style={{ lineHeight: 1.1, fontWeight: 700, fontSize: 13, width: 44 }}>
-                      {daysFilter === 7 ? 'All' : daysFilter === 1 ? '24h' : `${daysFilter}d`}<br />Events
+                      {daysFilter === 0 ? 'All' : daysFilter === 1 ? '24h' : `${daysFilter}d`}<br />Events
                     </div>
                     <input
                       type="range"
-                      min="1"
+                      min="0"
                       max="7"
                       value={daysFilter}
-                      onChange={(e) => setDaysFilter(parseInt(e.target.value))}
+                      onChange={(e) => updateDaysParam(parseInt(e.target.value))}
                       className="days-slider"
                       style={{
                         '--progress': `${((daysFilter - 1) / 6) * 100}%`,

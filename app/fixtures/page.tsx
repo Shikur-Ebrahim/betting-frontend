@@ -101,7 +101,7 @@ let fixturesOddsCache: Record<number, OddsValues> = {};
 function FixturesContent() {
   const searchParams = useSearchParams();
   const leagueId = searchParams?.get('league');
-  const daysFilter = searchParams?.get('days') || '7';
+  const daysFilter = searchParams?.get('days') || '0';
 
   const [allMatches, setAllMatches] = useState<any[]>(fixturesCache);
   const [oddsMap, setOddsMap] = useState<Record<number, OddsValues>>(fixturesOddsCache);
@@ -148,9 +148,7 @@ function FixturesContent() {
     const unsubFixtures = subscribeToFixtures((fixtures: any[]) => {
       setAllMatches(fixtures);
       fixturesCache = fixtures;
-      if (fixtures.length > 0) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
     const unsubOdds = onSnapshot(collection(db, 'odds'), (snap) => {
