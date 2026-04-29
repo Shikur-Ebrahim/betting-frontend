@@ -5,10 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { OddsValues } from '../../lib/odds';
 import Link from 'next/link';
 import { subscribeToLiveMatches, subscribeToLeagues } from '../../services/firestoreService';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 // Simple global cache to preserve live data on back navigation
 let liveMatchesCache: any[] = [];
 let liveOddsCache: Record<number, OddsValues> = {};
+let liveOddsFixtureIdsCache: Set<string> = new Set();
 
 function LiveContent() {
   const searchParams = useSearchParams();
@@ -18,6 +21,7 @@ function LiveContent() {
   const [allMatches, setAllMatches] = useState<any[]>(liveMatchesCache);
   const [visibleMatches, setVisibleMatches] = useState<any[]>(liveMatchesCache);
   const [oddsMap, setOddsMap] = useState<Record<number, OddsValues>>(liveOddsCache);
+  const [liveOddsFixtureIds, setLiveOddsFixtureIds] = useState<Set<string>>(liveOddsFixtureIdsCache);
 
   const [loading, setLoading] = useState(liveMatchesCache.length === 0);
   const [searchQuery, setSearchQuery] = useState(urlQuery);
@@ -48,22 +52,34 @@ function LiveContent() {
   }, []);
 
   useEffect(() => {
+    const unsubscribeOdds = onSnapshot(collection(db, 'odds'), (snap) => {
+      const ids = new Set<string>(snap.docs.map((d) => d.id));
+      liveOddsFixtureIdsCache = ids;
+      setLiveOddsFixtureIds(ids);
+    });
+    return () => unsubscribeOdds();
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeToLiveMatches((matches: any[]) => {
       setAllMatches(matches);
-      
-      const filtered = matches.filter((m: any) => {
-        const s = m.fixture?.status?.short;
-        return s === '1H' || s === '2H' || s === 'HT';
-      });
-
-      setVisibleMatches(filtered);
-      liveMatchesCache = filtered;
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [leagueId]);
+
+  useEffect(() => {
+    const onlyLive = allMatches.filter((m: any) => {
+      const s = m.fixture?.status?.short;
+      return s === '1H' || s === '2H' || s === 'HT';
+    });
+
+    const withOdds = onlyLive.filter((m: any) => liveOddsFixtureIds.has(String(m?.fixture?.id)));
+    const filtered = withOdds.length > 0 ? withOdds : onlyLive;
+    setVisibleMatches(filtered);
+    liveMatchesCache = filtered;
+  }, [allMatches, liveOddsFixtureIds]);
 
   const filteredMatches = visibleMatches.filter(m => {
     if (!m) return false;
