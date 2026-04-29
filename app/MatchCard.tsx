@@ -72,7 +72,9 @@ export default function MatchCard({
           ? { odds: oddsSource }
           : { bookmakers: oddsSource };
         const bestOdds = extractBestOdds(normalized);
-        setLocalOdds(bestOdds);
+        if (bestOdds) {
+          setLocalOdds(bestOdds);
+        }
       }
       setLoading(false);
     });

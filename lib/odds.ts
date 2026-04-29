@@ -40,6 +40,30 @@ export function extractBestOdds(leagueData: any): OddsValues | null {
           }
         }
       }
+
+      // Fallback: accept any 3-way market with recognizable outcomes.
+      if (Array.isArray(bet.values) && bet.values.length >= 3) {
+        let homeVal: string | null = null;
+        let drawVal: string | null = null;
+        let awayVal: string | null = null;
+        for (const v of bet.values) {
+          const normalized = String(v.value || '').toLowerCase().trim();
+          if (!homeVal && (normalized === 'home' || normalized === '1')) homeVal = v.odd ? String(v.odd) : null;
+          if (!drawVal && (normalized === 'draw' || normalized === 'x' || normalized === 'tie')) drawVal = v.odd ? String(v.odd) : null;
+          if (!awayVal && (normalized === 'away' || normalized === '2')) awayVal = v.odd ? String(v.odd) : null;
+        }
+
+        // If labels are not standard but market is 3-way, use positional fallback.
+        if (!homeVal && !drawVal && !awayVal && bet.values[0]?.odd && bet.values[1]?.odd && bet.values[2]?.odd) {
+          homeVal = String(bet.values[0].odd);
+          drawVal = String(bet.values[1].odd);
+          awayVal = String(bet.values[2].odd);
+        }
+
+        if (!result.home && homeVal) result.home = homeVal;
+        if (!result.draw && drawVal) result.draw = drawVal;
+        if (!result.away && awayVal) result.away = awayVal;
+      }
       
       // Early exit if we found all three values
       if (result.home && result.draw && result.away) return;
