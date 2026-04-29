@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { subscribeToLeagueTeams } from '../../services/firestoreService';
 
 function TeamsContent() {
   const searchParams = useSearchParams();
@@ -9,13 +10,13 @@ function TeamsContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if(!leagueId) return;
-    fetch(`/api/football/teams?league=${leagueId}`)
-      .then(res => res.json())
-      .then(data => {
-        setTeams(data.response || []);
-        setLoading(false);
-      });
+    if (!leagueId) return;
+    setLoading(true);
+    const unsubscribe = subscribeToLeagueTeams(leagueId, (list: any[]) => {
+      setTeams(list || []);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, [leagueId]);
 
   if (!leagueId) return <div>Select a league from sidebar</div>;

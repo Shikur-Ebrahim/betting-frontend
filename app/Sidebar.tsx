@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { subscribeToFixtures } from '../services/firestoreService';
 
 function SidebarSection({ item, isLiveOpen, currentLeague, pathname, daysFilter, searchQuery, onClose }: { item: any, isLiveOpen: boolean, currentLeague: string | null, pathname: string | null, daysFilter: number, searchQuery: string, onClose?: () => void }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -111,6 +112,8 @@ function SidebarContent() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '');
+  const [discoveryFixtures, setDiscoveryFixtures] = useState<any[]>([]);
+  const [allLeaguesFlat, setAllLeaguesFlat] = useState<any[]>([]);
 
   const updateSearchParam = (val: string) => {
     setSearchQuery(val);
@@ -138,6 +141,7 @@ function SidebarContent() {
       }
 
       const allLeagues = snap.data().leagues || [];
+      setAllLeaguesFlat(allLeagues);
       const topIds = [2, 39, 140, 135, 78, 61, 3, 848]; // UCL, EPL, La Liga, etc.
       
       const topLeagues = allLeagues.filter((l: any) => topIds.includes(Number(l.id)));
@@ -168,6 +172,13 @@ function SidebarContent() {
     return () => window.removeEventListener('open-mobile-drawer', handleOpenDrawer);
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToFixtures((fixtures: any[]) => {
+      setDiscoveryFixtures(fixtures || []);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Global Sidebar Discovery Search
   useEffect(() => {
     if (searchQuery.length < 2) {
@@ -176,42 +187,31 @@ function SidebarContent() {
     }
 
     setIsSearchingMatches(true);
+    const q = searchQuery.toLowerCase();
 
-    // Discovery: Matches + All Leagues
-    Promise.all([
-      fetch(`/api/football/fixtures?days=7`).then(res => res.json()),
-      fetch(`/api/football/leagues`).then(res => res.json())
-    ])
-      .then(([fixturesData, leaguesData]) => {
-        const q = searchQuery.toLowerCase();
+    const matches = (discoveryFixtures || []).filter((m: any) =>
+      (m?.teams?.home?.name || '').toLowerCase().includes(q) ||
+      (m?.teams?.away?.name || '').toLowerCase().includes(q) ||
+      (m?.league?.name || '').toLowerCase().includes(q)
+    ).slice(0, 12);
 
-        // 1. Matching Matches
-        const matches = (fixturesData.response || []).filter((m: any) =>
-          m.teams.home.name.toLowerCase().includes(q) ||
-          m.teams.away.name.toLowerCase().includes(q) ||
-          m.league.name.toLowerCase().includes(q)
-        ).slice(0, 12);
+    const leagues = (allLeaguesFlat || [])
+      .filter((l: any) =>
+        (l?.name || '').toLowerCase().includes(q) ||
+        (l?.country || '').toLowerCase().includes(q)
+      )
+      .map((l: any) => ({
+        type: 'league',
+        id: l.id,
+        name: `${l.country}. ${l.name}`,
+        country: l.country,
+        logo: l.flag || l.logo
+      }))
+      .slice(0, 8);
 
-        // 2. Matching Leagues (from global list)
-        const leagues = (leaguesData.response || [])
-          .filter((l: any) =>
-            l.league.name.toLowerCase().includes(q) ||
-            l.country.name.toLowerCase().includes(q)
-          )
-          .map((l: any) => ({
-            type: 'league',
-            id: l.league.id,
-            name: `${l.country.name}. ${l.league.name}`,
-            country: l.country.name,
-            logo: l.country.flag || l.league.logo
-          }))
-          .slice(0, 8);
-
-        setSearchMatches([...leagues, ...matches.map((m: any) => ({ type: 'match', ...m }))]);
-        setIsSearchingMatches(false);
-      })
-      .catch(() => setIsSearchingMatches(false));
-  }, [searchQuery]);
+    setSearchMatches([...leagues, ...matches.map((m: any) => ({ type: 'match', ...m }))]);
+    setIsSearchingMatches(false);
+  }, [searchQuery, discoveryFixtures, allLeaguesFlat]);
 
   const filteredItems = items.map(item => ({
     ...item,

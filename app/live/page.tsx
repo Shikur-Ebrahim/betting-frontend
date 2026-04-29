@@ -4,7 +4,7 @@ import MatchCard from '../MatchCard';
 import { useSearchParams } from 'next/navigation';
 import { OddsValues } from '../../lib/odds';
 import Link from 'next/link';
-import { subscribeToLiveMatches } from '../../services/firestoreService';
+import { subscribeToLiveMatches, subscribeToLeagues } from '../../services/firestoreService';
 
 // Simple global cache to preserve live data on back navigation
 let liveMatchesCache: any[] = [];
@@ -34,18 +34,17 @@ function LiveContent() {
     setSearchQuery(localSearch);
   }, [localSearch]);
 
-  // Fetch leagues once for search discovery
+  // Subscribe to leagues list from Firebase for search discovery
   useEffect(() => {
-    fetch('/api/football/leagues')
-      .then(res => res.json())
-      .then(data => {
-        const list = data.response?.map((l: any) => ({
-          id: l.league.id,
-          name: `${l.country.name}. ${l.league.name}`,
-          logo: l.country.flag || l.league.logo
-        })) || [];
-        setAllLeagues(list);
-      });
+    const unsubscribe = subscribeToLeagues((leagues: any[]) => {
+      const list = leagues.map((l: any) => ({
+        id: l.id,
+        name: `${l.country}. ${l.name}`,
+        logo: l.flag || l.logo
+      }));
+      setAllLeagues(list);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

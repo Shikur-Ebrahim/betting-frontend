@@ -5,13 +5,13 @@ import {
   query, 
   orderBy, 
   limit,
-  doc 
+  doc
 } from "firebase/firestore";
 
 /**
  * Subscribe to live matches in real-time.
  */
-export function subscribeToLiveMatches(callback: (matches: any[]) => void) {
+export function subscribeToLiveMatches(callback: (matches: Record<string, unknown>[]) => void) {
   const q = query(
     collection(db, "live_matches"),
     limit(50)
@@ -31,7 +31,7 @@ export function subscribeToLiveMatches(callback: (matches: any[]) => void) {
 /**
  * Subscribe to upcoming fixtures.
  */
-export function subscribeToFixtures(callback: (fixtures: any[]) => void) {
+export function subscribeToFixtures(callback: (fixtures: Record<string, unknown>[]) => void) {
   const q = query(
     collection(db, "fixtures"),
     orderBy("fixture.date", "asc"),
@@ -50,9 +50,42 @@ export function subscribeToFixtures(callback: (fixtures: any[]) => void) {
 }
 
 /**
+ * Subscribe to configured leagues.
+ */
+export function subscribeToLeagues(callback: (leagues: Record<string, unknown>[]) => void) {
+  return onSnapshot(doc(db, "config", "leagues_list"), (docSnap) => {
+    if (!docSnap.exists()) {
+      callback([]);
+      return;
+    }
+    callback(docSnap.data().leagues || []);
+  }, (error) => {
+    console.error("Error subscribing to leagues:", error);
+  });
+}
+
+/**
+ * Subscribe to teams for a single league.
+ */
+export function subscribeToLeagueTeams(leagueId: string | number, callback: (teams: unknown[]) => void) {
+  if (!leagueId) return () => {};
+
+  return onSnapshot(doc(db, "league_teams", leagueId.toString()), (docSnap) => {
+    if (!docSnap.exists()) {
+      callback([]);
+      return;
+    }
+    const teamsMap = docSnap.data()?.teams || {};
+    callback(Object.values(teamsMap));
+  }, (error) => {
+    console.error(`Error subscribing to league teams for ${leagueId}:`, error);
+  });
+}
+
+/**
  * Subscribe to odds for a specific fixture.
  */
-export function subscribeToOdds(fixtureId: string | number, callback: (odds: any) => void) {
+export function subscribeToOdds(fixtureId: string | number, callback: (odds: Record<string, unknown> | null) => void) {
   if (!fixtureId) return () => {};
   
   return onSnapshot(doc(db, "odds", fixtureId.toString()), (docSnap) => {
