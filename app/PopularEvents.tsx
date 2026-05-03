@@ -145,16 +145,38 @@ export default function PopularEvents() {
                 </div>
 
                 <div className="logo-vs-row">
-                  <div className="team-logo-circle"><img src={m.teams?.home?.logo || ''} alt="" /></div>
+                  <div className="team-logo-circle">
+                    {m.teams?.home?.logo ? (
+                      <img src={m.teams.home.logo} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'white', fontWeight: 'bold' }}>
+                        {m.teams?.home?.name ? m.teams.home.name.charAt(0).toUpperCase() : 'H'}
+                      </div>
+                    )}
+                  </div>
                   <div className="vs-score-box">
                     {isLive ? (<><span>{m.goals?.home ?? 0}</span><span className="vs-text" style={{ margin: '0 6px', opacity: 0.5 }}>:</span><span>{m.goals?.away ?? 0}</span></>) : (<span className="vs-text">VS</span>)}
                   </div>
-                  <div className="team-logo-circle"><img src={m.teams?.away?.logo || ''} alt="" /></div>
+                  <div className="team-logo-circle">
+                    {m.teams?.away?.logo ? (
+                      <img src={m.teams.away.logo} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'white', fontWeight: 'bold' }}>
+                        {m.teams?.away?.name ? m.teams.away.name.charAt(0).toUpperCase() : 'A'}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="popular-info-area">
                   <div className="popular-league-text">
-                    <img src={m.league.logo} style={{ width: 14, height: 14, borderRadius: '50%' }} alt="" />
+                    {m.league?.logo ? (
+                      <img src={m.league.logo} style={{ width: 14, height: 14, borderRadius: '50%' }} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 6, color: 'white', fontWeight: 'bold', marginRight: 4 }}>
+                        {m.league?.name ? m.league.name.charAt(0).toUpperCase() : 'L'}
+                      </div>
+                    )}
                     <span>Football. {m.league.name}</span>
                   </div>
                   <div className="popular-teams-text">
