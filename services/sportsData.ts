@@ -34,8 +34,8 @@ export function subscribeToLiveMatches(callback: (matches: Record<string, unknow
 export function subscribeToFixtures(callback: (fixtures: Record<string, unknown>[]) => void) {
   const tick = async () => {
     try {
-      const data = await fetchJson<{ fixtures: Record<string, unknown>[] }>('/api/football/fixtures-all');
-      callback(data.fixtures || []);
+      const data = await fetchJson<{ response: Record<string, unknown>[] }>('/api/football/fixtures');
+      callback(data.response || []);
     } catch (e) {
       console.error('subscribeToFixtures:', e);
     }

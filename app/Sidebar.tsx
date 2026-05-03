@@ -2,7 +2,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { subscribeToFixtures } from '../services/sportsData';
+import { subscribeToFixtures, subscribeToLeagues } from '../services/sportsData';
 
 function SidebarSection({ item, isLiveOpen, currentLeague, pathname, daysFilter, searchQuery, onClose }: { item: any, isLiveOpen: boolean, currentLeague: string | null, pathname: string | null, daysFilter: number, searchQuery: string, onClose?: () => void }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -118,7 +118,7 @@ function SidebarContent() {
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '');
   const [discoveryFixtures, setDiscoveryFixtures] = useState<any[]>([]);
   const [allLeaguesFlat, setAllLeaguesFlat] = useState<any[]>([]);
-  const topIds = [2, 39, 140, 135, 78, 61, 3, 848];
+  const topIds = [39, 140, 135, 78, 61, 2, 3, 848, 394, 403];
 
   const updateSearchParam = (val: string) => {
     setSearchQuery(val);
@@ -139,21 +139,17 @@ function SidebarContent() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    const loadConfig = async () => {
-      try {
-        const res = await fetch('/api/football/config-leagues');
-        const data = await res.json();
-        
-        if (cancelled || !data.leagues?.length) {
-          return;
-        }
-
+    const unsubscribe = subscribeToLeagues((data: any) => {
+      if (data && data.leagues) {
         const allLeagues = data.leagues || [];
+        console.log('🔍 Sidebar received leagues:', allLeagues.length, 'leagues');
         setAllLeaguesFlat(allLeagues);
 
         const topLeagues = allLeagues.filter((l: any) => topIds.includes(Number(l.id)));
         const otherLeagues = allLeagues.filter((l: any) => !topIds.includes(Number(l.id)));
+
+        console.log('🏆 Top leagues found:', topLeagues.length);
+        console.log('⚽ Other leagues found:', otherLeagues.length);
 
         const categorizedItems = [
           {
@@ -167,19 +163,10 @@ function SidebarContent() {
             leagues: otherLeagues
           }
         ];
-
         setItems(categorizedItems);
-      } catch (error) {
-        console.error('Error loading sidebar config:', error);
-        /* fallback from fixtures below */
       }
-    };
-    loadConfig();
-    const interval = setInterval(loadConfig, 60000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -500,19 +487,20 @@ function SidebarContent() {
                         style={{ 
                           display: 'block', 
                           textAlign: 'center', 
-                          background: '#222', 
+                          background: 'var(--accent)', 
                           color: 'white', 
                           padding: 12, 
                           borderRadius: 8, 
                           fontWeight: 600, 
                           fontSize: 14, 
                           textDecoration: 'none', 
-                          transition: '0.2s' 
+                          transition: '0.2s',
+                          border: '1px solid var(--accent)'
                         }} 
                         className="sidebar-hover-item" 
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        See All Countries
+                        🌍 See All Countries
                       </Link>
                     </div>
                   )}

@@ -234,6 +234,8 @@ function FixturesContent() {
   const [allMatches, setAllMatches] = useState<any[]>(fixturesCache);
   const [oddsMap, setOddsMap] = useState<Record<number, OddsValues>>(fixturesOddsCache);
   const [loading, setLoading] = useState(fixturesCache.length === 0);
+
+  
   const urlQuery = searchParams?.get('q') || '';
   const [searchQuery, setSearchQuery] = useState(urlQuery);
   const [allLeagues, setAllLeagues] = useState<any[]>([]);
@@ -316,6 +318,8 @@ function FixturesContent() {
       // 2. Odds Filter - Only show games with assigned odds (apply to all views)
       const hasOdds = oddsMap[m.fixture.id] && 
         (oddsMap[m.fixture.id].home || oddsMap[m.fixture.id].draw || oddsMap[m.fixture.id].away);
+      
+            
       if (!hasOdds) return false;
 
       // 3. Day Filter Logic
