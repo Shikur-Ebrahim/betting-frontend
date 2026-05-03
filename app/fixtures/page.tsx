@@ -5,9 +5,7 @@ import MatchCard from '../MatchCard';
 import { useSearchParams } from 'next/navigation';
 import PopularEvents from '../PopularEvents';
 import { extractBestOdds, OddsValues } from '@/lib/odds';
-import { subscribeToFixtures } from '@/services/firestoreService';
-import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection } from 'firebase/firestore';
+import { subscribeToFixtures, subscribeToOddsMap } from '@/services/sportsData';
 
 // Leagues to prioritize on the landing page (in display order)
 const PRIORITY_LEAGUES = [
@@ -128,20 +126,29 @@ function FixturesContent() {
     return () => clearTimeout(timer);
   }, [localSearch]);
 
-  // Fetch leagues once for search discovery from Firestore config
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'config', 'leagues_list'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const list = data.leagues?.map((l: any) => ({
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/football/config-leagues');
+        const data = await res.json();
+        if (cancelled || !data.leagues) return;
+        const list = data.leagues.map((l: any) => ({
           id: l.id,
           name: l.name,
           logo: l.logo
-        })) || [];
+        }));
         setAllLeagues(list);
+      } catch (e) {
+        console.error(e);
       }
-    });
-    return () => unsub();
+    };
+    load();
+    const id = setInterval(load, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
@@ -151,12 +158,11 @@ function FixturesContent() {
       setLoading(false);
     });
 
-    const unsubOdds = onSnapshot(collection(db, 'odds'), (snap) => {
+    const unsubOdds = subscribeToOddsMap((rawOdds) => {
       const newMap: Record<number, OddsValues> = {};
-      snap.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const extracted = extractBestOdds(data);
-        if (extracted) newMap[Number(docSnap.id)] = extracted;
+      Object.entries(rawOdds).forEach(([fid, doc]) => {
+        const extracted = extractBestOdds(doc as Record<string, unknown>);
+        if (extracted) newMap[Number(fid)] = extracted;
       });
       setOddsMap(newMap);
       fixturesOddsCache = newMap;

@@ -43,8 +43,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const idToken = localStorage.getItem('auth_token');
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, newPassword })
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ oldPassword, newPassword }),
       });
       
       const data = await response.json();

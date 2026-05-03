@@ -29,6 +29,8 @@ export default function Register() {
       if(!res.ok) throw new Error(data.error || 'Register failed');
       setSuccess(true);
       localStorage.setItem('auth_token', data.idToken);
+      if (data.localId) localStorage.setItem('user_uid', data.localId);
+      localStorage.setItem('user_role', data.role || 'user');
       // Redirect after success could be added here
     } catch(err: any) {
       setError(err.message);

@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { db } from '../../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { subscribeToLeagues } from '../../services/sportsData';
 
 export default function AllLeaguesPage() {
    const [leagues, setLeagues] = useState<any[]>([]);
@@ -10,13 +9,10 @@ export default function AllLeaguesPage() {
    const [searchQuery, setSearchQuery] = useState('');
 
    useEffect(() => {
-     const unsub = onSnapshot(doc(db, 'config', 'leagues_list'), (snap) => {
-       if (snap.exists()) {
-         const list = snap.data().leagues || [];
-         // Sort alphabetically
-         list.sort((a:any, b:any) => a.name.localeCompare(b.name));
-         setLeagues(list);
-       }
+     const unsub = subscribeToLeagues((listRaw) => {
+       const list = [...(listRaw || [])] as any[];
+       list.sort((a: any, b: any) => String(a.name).localeCompare(String(b.name)));
+       setLeagues(list);
        setLoading(false);
      });
      return () => unsub();

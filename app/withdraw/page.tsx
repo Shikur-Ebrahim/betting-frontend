@@ -60,7 +60,10 @@ export default function WithdrawPage() {
 
   const fetchBalance = async (uid: string) => {
     try {
-      const res = await fetch(`/api/user/profile?userId=${uid}`);
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/user/profile?userId=${uid}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await res.json();
       if (data.success) setBalance(data.balance);
     } catch (err) { console.error(err); }

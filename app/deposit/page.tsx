@@ -61,7 +61,10 @@ export default function DepositPage() {
 
   const checkPending = async (uid: string) => {
     try {
-      const res = await fetch(`/api/deposit/check-pending?userId=${uid}`);
+      const t = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/deposit/check-pending?userId=${uid}`, {
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+      });
       const data = await res.json();
       setHasPending(data.hasPending);
     } catch (err) {
@@ -142,9 +145,13 @@ export default function DepositPage() {
       const uid = localStorage.getItem('user_uid');
       const phone = localStorage.getItem('user_phone');
 
+      const token = localStorage.getItem('auth_token');
       const res = await fetch('/api/deposit/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           userId: uid,
           phoneNumber: phone,

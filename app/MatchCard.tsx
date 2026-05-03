@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { OddsValues, extractBestOdds } from '@/lib/odds';
 import { useEffect, useState } from 'react';
 import { toggleBet, getBetslip } from '@/lib/betslip';
-import { subscribeToOdds } from '@/services/firestoreService';
+import { subscribeToOdds } from '@/services/sportsData';
 
 export default function MatchCard({
   match,

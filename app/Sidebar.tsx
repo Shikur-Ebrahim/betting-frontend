@@ -2,9 +2,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { subscribeToFixtures } from '../services/firestoreService';
+import { subscribeToFixtures } from '../services/sportsData';
 
 function SidebarSection({ item, isLiveOpen, currentLeague, pathname, daysFilter, searchQuery, onClose }: { item: any, isLiveOpen: boolean, currentLeague: string | null, pathname: string | null, daysFilter: number, searchQuery: string, onClose?: () => void }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -135,35 +133,43 @@ function SidebarContent() {
   };
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'config', 'leagues_list'), (snap) => {
-      if (!snap.exists()) {
-        // Config might be missing on fresh DB. We fallback from live fixtures below.
-        return;
+    let cancelled = false;
+    const loadConfig = async () => {
+      try {
+        const res = await fetch('/api/football/config-leagues');
+        const data = await res.json();
+        if (cancelled || !data.leagues?.length) return;
+
+        const allLeagues = data.leagues || [];
+        setAllLeaguesFlat(allLeagues);
+
+        const topLeagues = allLeagues.filter((l: any) => topIds.includes(Number(l.id)));
+        const otherLeagues = allLeagues.filter((l: any) => !topIds.includes(Number(l.id)));
+
+        const categorizedItems = [
+          {
+            type: 'top_leagues',
+            title: 'Top Leagues',
+            leagues: topLeagues
+          },
+          {
+            type: 'sports',
+            title: 'All Sports',
+            leagues: otherLeagues
+          }
+        ];
+
+        setItems(categorizedItems);
+      } catch {
+        /* fallback from fixtures below */
       }
-
-      const allLeagues = snap.data().leagues || [];
-      setAllLeaguesFlat(allLeagues);
-      
-      const topLeagues = allLeagues.filter((l: any) => topIds.includes(Number(l.id)));
-      const otherLeagues = allLeagues.filter((l: any) => !topIds.includes(Number(l.id)));
-
-      const categorizedItems = [
-        {
-          type: 'top_leagues',
-          title: 'Top Leagues',
-          leagues: topLeagues
-        },
-        {
-          type: 'sports',
-          title: 'All Sports',
-          leagues: otherLeagues
-        }
-      ];
-
-      setItems(categorizedItems);
-    });
-
-    return () => unsub();
+    };
+    loadConfig();
+    const interval = setInterval(loadConfig, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {

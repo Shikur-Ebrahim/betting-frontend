@@ -4,11 +4,8 @@ import MatchCard from '../MatchCard';
 import { useSearchParams } from 'next/navigation';
 import { OddsValues } from '../../lib/odds';
 import Link from 'next/link';
-import { subscribeToLiveMatches, subscribeToLeagues } from '../../services/firestoreService';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { subscribeToLiveMatches, subscribeToLeagues, subscribeToOddsFixtureIds } from '../../services/sportsData';
 
-// Simple global cache to preserve live data on back navigation
 let liveMatchesCache: any[] = [];
 let liveOddsCache: Record<number, OddsValues> = {};
 let liveOddsFixtureIdsCache: Set<string> = new Set();
@@ -28,7 +25,6 @@ function LiveContent() {
   const [localSearch, setLocalSearch] = useState(urlQuery);
   const [allLeagues, setAllLeagues] = useState<any[]>([]);
 
-  // Sync with URL
   useEffect(() => {
     setSearchQuery(urlQuery);
     setLocalSearch(urlQuery);
@@ -38,7 +34,6 @@ function LiveContent() {
     setSearchQuery(localSearch);
   }, [localSearch]);
 
-  // Subscribe to leagues list from Firebase for search discovery
   useEffect(() => {
     const unsubscribe = subscribeToLeagues((leagues: any[]) => {
       const list = leagues.map((l: any) => ({
@@ -52,8 +47,7 @@ function LiveContent() {
   }, []);
 
   useEffect(() => {
-    const unsubscribeOdds = onSnapshot(collection(db, 'odds'), (snap) => {
-      const ids = new Set<string>(snap.docs.map((d) => d.id));
+    const unsubscribeOdds = subscribeToOddsFixtureIds((ids) => {
       liveOddsFixtureIdsCache = ids;
       setLiveOddsFixtureIds(ids);
     });
@@ -87,7 +81,7 @@ function LiveContent() {
     const homeName = m.teams?.home?.name || '';
     const awayName = m.teams?.away?.name || '';
     const leagueName = m.league?.name || '';
-    
+
     return homeName.toLowerCase().includes(q) ||
       awayName.toLowerCase().includes(q) ||
       leagueName.toLowerCase().includes(q);

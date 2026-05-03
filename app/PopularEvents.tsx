@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { getPopularMatches } from '@/lib/popularity';
 import { toggleBet, getBetslip } from '@/lib/betslip';
 import { extractBestOdds } from '@/lib/odds';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { subscribeToDataBundle } from '@/services/sportsData';
 
 export default function PopularEvents() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -16,19 +15,11 @@ export default function PopularEvents() {
 
   useEffect(() => {
     setLoading(true);
-    
-    // 1. Listen to Live & Fixtures to find trending events
-    const qLive = collection(db, 'live_matches');
-    const qFixtures = collection(db, 'fixtures');
-    const qOdds = collection(db, 'odds');
 
-    let livePool: any[] = [];
-    let fixturesPool: any[] = [];
-
-    const updateTrending = () => {
+    const updateTrending = (livePool: any[], fixturesPool: any[]) => {
       const combined = [...livePool, ...fixturesPool];
       const rankedPool = getPopularMatches(combined, 40);
-      
+
       const isLiveMatch = (m: any) => {
         const nonLive = ['NS', 'FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', 'AWD', 'WO', 'TBD'];
         return !nonLive.includes(m?.fixture?.status?.short);
@@ -43,7 +34,6 @@ export default function PopularEvents() {
       for (const match of merged) {
         const fixtureId = Number(match?.fixture?.id);
         if (!fixtureId) continue;
-        // Prefer live record if the same fixture exists in both collections.
         if (!dedupedByFixture.has(fixtureId) || isLiveMatch(match)) {
           dedupedByFixture.set(fixtureId, match);
         }
@@ -53,24 +43,15 @@ export default function PopularEvents() {
       setLoading(false);
     };
 
-    const unsubscribeLive = onSnapshot(qLive, (snap) => {
-      livePool = snap.docs.map(doc => doc.data());
-      updateTrending();
-    });
+    const unsub = subscribeToDataBundle((bundle) => {
+      const livePool = bundle.liveMatches || [];
+      const fixturesPool = bundle.fixtures || [];
+      updateTrending(livePool as any[], fixturesPool as any[]);
 
-    const unsubscribeFixtures = onSnapshot(qFixtures, (snap) => {
-      fixturesPool = snap.docs.map(doc => doc.data());
-      updateTrending();
-    });
-
-    const unsubscribeOdds = onSnapshot(qOdds, (snap) => {
       const newMap: Record<number, any> = {};
-      snap.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.bookmakers?.[0]?.bets?.[0]) {
-           const matchOdds = extractBestOdds(data);
-           if (matchOdds) newMap[Number(doc.id)] = matchOdds;
-        }
+      Object.entries(bundle.odds || {}).forEach(([fid, data]) => {
+        const matchOdds = extractBestOdds(data as Record<string, unknown>);
+        if (matchOdds) newMap[Number(fid)] = matchOdds;
       });
       setOddsMap(newMap);
     });
@@ -85,9 +66,7 @@ export default function PopularEvents() {
     window.addEventListener('betslip-updated', updateSelections);
 
     return () => {
-      unsubscribeLive();
-      unsubscribeFixtures();
-      unsubscribeOdds();
+      unsub();
       window.removeEventListener('betslip-updated', updateSelections);
     };
   }, []);

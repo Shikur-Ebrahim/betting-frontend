@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { subscribeToLeagueTeams } from '../../services/firestoreService';
+import { subscribeToLeagueTeams } from '../../services/sportsData';
 
 function TeamsContent() {
   const searchParams = useSearchParams();

@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { extractBestOdds } from '@/lib/odds';
 import { getBetslip, toggleBet } from '@/lib/betslip';
 import PrematchInfo from './PrematchInfo';
-import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { subscribeToMatchDetail } from '@/services/sportsData';
 
 /** Determine if a fixture status string means the game is currently live */
 function isStatusLive(short: string | undefined): boolean {
@@ -92,68 +91,38 @@ function MatchDetailsContent() {
 
   const currentSelection = activeSelections[id];
 
-  // REAL-TIME FIRESTORE SYNC
   useEffect(() => {
     if (!id) return;
     window.scrollTo(0, 0);
     setLoading(true);
+    setOddsLoading(true);
 
-    // 1. Listen to Match Data (Check Live first, then Fixtures)
-    let unsubFixtures: (() => void) | null = null;
-    const unsubLive = onSnapshot(doc(db, 'live_matches', id), (docSnap) => {
-      if (docSnap.exists()) {
-        if (unsubFixtures) {
-          unsubFixtures();
-          unsubFixtures = null;
-        }
-        setMatch(docSnap.data());
+    const unsub = subscribeToMatchDetail(id, (bundle) => {
+      if (bundle.match) {
+        setMatch(bundle.match as Record<string, unknown>);
         setLoading(false);
       } else {
-        // If not in live, check fixtures
-        if (!unsubFixtures) {
-          unsubFixtures = onSnapshot(doc(db, 'fixtures', id), (fSnap) => {
-            if (fSnap.exists()) {
-              setMatch(fSnap.data());
-            }
-            setLoading(false);
-          });
-        }
+        setLoading(false);
       }
-    });
 
-    // 2. Listen to Odds
-    const unsubOdds = onSnapshot(doc(db, 'odds', id), (docSnap) => {
-      if (docSnap.exists()) {
-        const leagueOdds = docSnap.data();
-        setOddsUpdatedAt(leagueOdds?.updatedAt || leagueOdds?._updatedAt || null);
+      if (bundle.odds) {
+        const leagueOdds = bundle.odds as Record<string, unknown>;
+        setOddsUpdatedAt((leagueOdds.updatedAt || leagueOdds._updatedAt) as string | null);
         const bets = extractBets(leagueOdds);
         if (bets && bets.length > 0) {
           setOdds({ bookmakers: [{ bets }] });
         }
-      } else if (!odds) {
-        // Keep last known odds when snapshot is temporarily missing.
+      } else {
         setOddsUpdatedAt(null);
       }
       setOddsLoading(false);
+      setStats((bundle.stats || []) as unknown[]);
+      setLineups((bundle.lineups || []) as unknown[]);
+      setH2h((bundle.h2h || []) as any[]);
+      setStandings((bundle.standings || []) as any[]);
     });
 
-    // 3. Listen to Stats
-    const unsubStats = onSnapshot(doc(db, 'match_stats', id), (docSnap) => {
-      if (docSnap.exists()) setStats(docSnap.data().response || []);
-    });
-
-    // 4. Listen to Lineups
-    const unsubLineups = onSnapshot(doc(db, 'match_lineups', id), (docSnap) => {
-      if (docSnap.exists()) setLineups(docSnap.data().response || []);
-    });
-
-    return () => {
-      unsubLive();
-      if (unsubFixtures) (unsubFixtures as () => void)();
-      unsubOdds();
-      unsubStats();
-      unsubLineups();
-    };
+    return () => unsub();
   }, [id]);
 
   if (loading) return <div className="loader"></div>;
