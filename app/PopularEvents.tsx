@@ -145,11 +145,11 @@ export default function PopularEvents() {
                 </div>
 
                 <div className="logo-vs-row">
-                  <div className="team-logo-circle"><img src={m.teams.home.logo} alt="" /></div>
+                  <div className="team-logo-circle"><img src={m.teams?.home?.logo || ''} alt="" /></div>
                   <div className="vs-score-box">
-                    {isLive ? (<><span>{m.goals.home ?? 0}</span><span className="vs-text" style={{ margin: '0 6px', opacity: 0.5 }}>:</span><span>{m.goals.away ?? 0}</span></>) : (<span className="vs-text">VS</span>)}
+                    {isLive ? (<><span>{m.goals?.home ?? 0}</span><span className="vs-text" style={{ margin: '0 6px', opacity: 0.5 }}>:</span><span>{m.goals?.away ?? 0}</span></>) : (<span className="vs-text">VS</span>)}
                   </div>
-                  <div className="team-logo-circle"><img src={m.teams.away.logo} alt="" /></div>
+                  <div className="team-logo-circle"><img src={m.teams?.away?.logo || ''} alt="" /></div>
                 </div>
 
                 <div className="popular-info-area">
@@ -158,8 +158,8 @@ export default function PopularEvents() {
                     <span>Football. {m.league.name}</span>
                   </div>
                   <div className="popular-teams-text">
-                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.teams.home.name}</div>
-                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.teams.away.name}</div>
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.teams?.home?.name || 'Home Team'}</div>
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.teams?.away?.name || 'Away Team'}</div>
                   </div>
                 </div>
 
