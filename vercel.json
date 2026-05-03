@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://betting-backend-adlh.onrender.com/api/$1"
+    }
+  ],
+  "env": {
+    "BACKEND_URL": "https://betting-backend-adlh.onrender.com"
+  },
+  "functions": {},
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ]
+}
