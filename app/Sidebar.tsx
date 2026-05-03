@@ -70,7 +70,13 @@ function SidebarSection({ item, isLiveOpen, currentLeague, pathname, daysFilter,
                 const isActive = (pathname === '/live' || pathname === '/fixtures') && currentLeague === String(l.id);
                 return (
                   <Link key={l.id} href={targetUrl} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', textDecoration: 'none', color: 'var(--text-main)', fontSize: 13, fontWeight: 600, transition: '0.2s', borderRadius: 6 }} className={`sidebar-hover-item ${isActive ? 'active' : ''}`} onClick={onClose}>
-                    <img src={l.logo} style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'contain', filter: 'brightness(1.2)' }} />
+                    {l.logo ? (
+                      <img src={l.logo} style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'contain', filter: 'brightness(1.2)' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', fontWeight: 'bold' }}>
+                        {l.name ? l.name.charAt(0).toUpperCase() : 'L'}
+                      </div>
+                    )}
                     <span>{l.name}</span>
                   </Link>
                 )
@@ -202,7 +208,7 @@ function SidebarContent() {
           id,
           name: league?.name || `League ${id}`,
           country: league?.country || 'Unknown',
-          logo: league?.logo || ''
+          logo: league?.logo || null
         });
       }
     }
