@@ -9,6 +9,7 @@
     "lint": "eslint",
     "build:prod": "NODE_ENV=production next build",
     "deploy:vercel": "vercel --prod",
+    "vercel-build": "next build",
     "postbuild": "echo 'Build completed successfully'"
   },
   "dependencies": {

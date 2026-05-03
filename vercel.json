@@ -6,20 +6,14 @@
       "use": "@vercel/next"
     }
   ],
+  "env": {
+    "NEXT_PUBLIC_BACKEND_URL": "https://betting-backend-adlh.onrender.com",
+    "NEXT_PUBLIC_API_URL": "https://betting-backend-adlh.onrender.com/api"
+  },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://betting-backend-adlh.onrender.com/api/$1"
-    }
-  ],
-  "env": {
-    "BACKEND_URL": "https://betting-backend-adlh.onrender.com"
-  },
-  "functions": {},
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/"
+      "source": "/api/:path*",
+      "destination": "https://betting-backend-adlh.onrender.com/api/:path*"
     }
   ]
 }
