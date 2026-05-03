@@ -91,6 +91,135 @@ function LeagueGroup({ leagueId, leagueName, leagueLogo, country, matches, oddsM
   );
 }
 
+// Collapsible country group component for See All view
+function CountryGroup({ country, matches, oddsMap }: {
+  country: string;
+  matches: any[];
+  oddsMap: Record<number, OddsValues>;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  // Group matches by league within the country
+  const groupedByLeague = React.useMemo(() => {
+    const grouped: Record<number, any[]> = {};
+    matches.forEach(m => {
+      const lid = m.league?.id;
+      if (!grouped[lid]) grouped[lid] = [];
+      grouped[lid].push(m);
+    });
+    return grouped;
+  }, [matches]);
+
+  return (
+    <div style={{ marginBottom: 2 }}>
+      {/* Country header row */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'var(--accent)',
+          padding: '10px 14px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          borderRadius: isOpen ? '6px 6px 0 0' : '6px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ 
+            width: 24, 
+            height: 24, 
+            background: 'rgba(255,255,255,0.2)', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            fontSize: 12
+          }}>
+            🏳️
+          </div>
+          <span style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>
+            {country}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
+            ({matches.length} games)
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>1</span>
+          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>X</span>
+          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>2</span>
+          <svg
+            style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s', opacity: 0.9 }}
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      {/* League and match rows */}
+      {isOpen && (
+        <div style={{ borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
+          {Object.entries(groupedByLeague).map(([leagueId, leagueMatches]) => {
+            const sample = leagueMatches[0];
+            return (
+              <div key={leagueId} style={{ marginBottom: 1 }}>
+                {/* League sub-header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 14px',
+                    background: 'rgba(0,0,0,0.3)',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  <div
+                    style={{ 
+                      width: 16, 
+                      height: 16, 
+                      borderRadius: '50%', 
+                      background: 'rgba(255,255,255,0.2)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      fontSize: 8,
+                      color: 'white',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {sample.league?.name ? sample.league.name.charAt(0).toUpperCase() : 'L'}
+                  </div>
+                  <Link
+                    href={`/fixtures?league=${leagueId}`}
+                    style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}
+                  >
+                    {sample.league?.name || `League ${leagueId}`}
+                  </Link>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>
+                    ({leagueMatches.length})
+                  </span>
+                </div>
+                {/* Match rows for this league */}
+                {leagueMatches.map(m => (
+                  <MatchCard
+                    key={m.fixture.id}
+                    match={m}
+                    odds={oddsMap[m.fixture.id] ?? null}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 // Simple global cache to preserve data on back navigation
 let fixturesCache: any[] = [];
@@ -100,6 +229,7 @@ function FixturesContent() {
   const searchParams = useSearchParams();
   const leagueId = searchParams?.get('league');
   const daysFilter = searchParams?.get('days') || '0';
+  const viewMode = searchParams?.get('view'); // 'country' for See All view
 
   const [allMatches, setAllMatches] = useState<any[]>(fixturesCache);
   const [oddsMap, setOddsMap] = useState<Record<number, OddsValues>>(fixturesOddsCache);
@@ -183,9 +313,27 @@ function FixturesContent() {
         (m.league?.name?.toLowerCase().includes(q));
       if (!matchesSearch) return false;
 
-      // 2. Day Filter Logic
+      // 2. Odds Filter - Only show games with assigned odds (apply to all views)
+      const hasOdds = oddsMap[m.fixture.id] && 
+        (oddsMap[m.fixture.id].home || oddsMap[m.fixture.id].draw || oddsMap[m.fixture.id].away);
+      if (!hasOdds) return false;
+
+      // 3. Day Filter Logic
       const dFilter = parseInt(daysFilter);
-      if (dFilter === 0) return true; // ALL (val 0)
+      if (dFilter === 0) {
+        // For country view "All", show games up to 7 days from today
+        if (viewMode === 'country') {
+          const matchDate = new Date(m.fixture.date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const sevenDaysFromNow = new Date(today);
+          sevenDaysFromNow.setDate(today.getDate() + 7);
+          sevenDaysFromNow.setHours(23, 59, 59, 999);
+          
+          return matchDate >= today && matchDate <= sevenDaysFromNow;
+        }
+        return true; // Normal ALL (val 0)
+      }
 
       const matchDate = new Date(m.fixture.date);
       const today = new Date();
@@ -194,14 +342,15 @@ function FixturesContent() {
 
       return matchDate.toDateString() === targetDate.toDateString();
     });
-  }, [allMatches, localSearch, daysFilter]);
+  }, [allMatches, localSearch, daysFilter, oddsMap, viewMode]);
 
   const filteredLeagues = searchQuery.length >= 2
     ? allLeagues.filter(l => l.name?.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 10)
     : [];
 
   // Group matches by league for the landing page view
-  const isLandingPage = !leagueId && !searchQuery;
+  const isCountryView = viewMode === 'country';
+  const isLandingPage = !leagueId && !searchQuery && !isCountryView;
   const groupedByLeague = React.useMemo(() => {
     const grouped: Record<number, any[]> = {};
     if (isLandingPage) {
@@ -214,6 +363,19 @@ function FixturesContent() {
     return grouped;
   }, [filteredMatches, isLandingPage]);
 
+  // Group matches by country for country view
+  const groupedByCountry = React.useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    if (isCountryView) {
+      filteredMatches.forEach(m => {
+        const country = m.league?.country || 'Unknown';
+        if (!grouped[country]) grouped[country] = [];
+        grouped[country].push(m);
+      });
+    }
+    return grouped;
+  }, [filteredMatches, isCountryView]);
+
   // Order groups by PRIORITY_LEAGUES order, then others
   const priorityIds = PRIORITY_LEAGUES.map(l => l.id);
   const orderedLeagueIds = [
@@ -221,12 +383,18 @@ function FixturesContent() {
     ...Object.keys(groupedByLeague).map(Number).filter(id => !priorityIds.includes(id))
   ];
 
+  // Order countries alphabetically
+  const orderedCountries = Object.keys(groupedByCountry).sort();
+
+  
   return (
     <div>
-      {!leagueId && !searchQuery && daysFilter === '0' && <PopularEvents />}
+      {!leagueId && !searchQuery && daysFilter === '0' && !isCountryView && <PopularEvents />}
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 10, flexWrap: 'nowrap' }}>
-        <h1 className="page-title" style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>Pre-Match</h1>
+        <h1 className="page-title" style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>
+          {isCountryView ? 'All Countries (Games with Odds - 7 Days)' : 'Pre-Match'}
+        </h1>
         <div className="search-bar" style={{ flex: 1, maxWidth: 240, margin: 0, minWidth: 0 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input
@@ -286,6 +454,24 @@ function FixturesContent() {
                 leagueName={sample.league?.name || ''}
                 leagueLogo={sample.league?.logo || ''}
                 country={sample.league?.country || ''}
+                matches={matches}
+                oddsMap={oddsMap}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* COUNTRY VIEW: Grouped by country */}
+      {isCountryView && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {orderedCountries.map(country => {
+            const matches = groupedByCountry[country];
+            if (!matches?.length) return null;
+            return (
+              <CountryGroup
+                key={country}
+                country={country}
                 matches={matches}
                 oddsMap={oddsMap}
               />

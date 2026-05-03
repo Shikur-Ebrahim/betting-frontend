@@ -76,8 +76,8 @@ function SidebarSection({ item, isLiveOpen, currentLeague, pathname, daysFilter,
                 )
               })}
             </div>
-            <Link href={isLiveOpen ? "/live" : "/leagues"} style={{ display: 'block', textAlign: 'center', background: '#222', color: 'white', padding: 12, borderRadius: 8, marginTop: 16, fontWeight: 600, fontSize: 14, textDecoration: 'none', transition: '0.2s' }} className="sidebar-hover-item" onClick={onClose}>
-              Show all
+            <Link href={isLiveOpen ? "/live" : "/fixtures?view=country"} style={{ display: 'block', textAlign: 'center', background: '#222', color: 'white', padding: 12, borderRadius: 8, marginTop: 16, fontWeight: 600, fontSize: 14, textDecoration: 'none', transition: '0.2s' }} className="sidebar-hover-item" onClick={onClose}>
+              See All
             </Link>
           </div>
         )}
@@ -138,7 +138,10 @@ function SidebarContent() {
       try {
         const res = await fetch('/api/football/config-leagues');
         const data = await res.json();
-        if (cancelled || !data.leagues?.length) return;
+        
+        if (cancelled || !data.leagues?.length) {
+          return;
+        }
 
         const allLeagues = data.leagues || [];
         setAllLeaguesFlat(allLeagues);
@@ -160,7 +163,8 @@ function SidebarContent() {
         ];
 
         setItems(categorizedItems);
-      } catch {
+      } catch (error) {
+        console.error('Error loading sidebar config:', error);
         /* fallback from fixtures below */
       }
     };
