@@ -443,40 +443,31 @@ function FixturesContent() {
       {/* LANDING PAGE: Grouped by league */}
       {isLandingPage && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {orderedLeagueIds.map(lid => {
-            const matches = groupedByLeague[lid];
-            if (!matches?.length) return null;
-            const sample = matches[0];
-            return (
-              <LeagueGroup
-                key={lid}
-                leagueId={lid}
-                leagueName={sample.league?.name || ''}
-                leagueLogo={sample.league?.logo || ''}
-                country={sample.league?.country || ''}
-                matches={matches}
-                oddsMap={oddsMap}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {/* COUNTRY VIEW: Grouped by country */}
-      {isCountryView && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {orderedCountries.map(country => {
-            const matches = groupedByCountry[country];
-            if (!matches?.length) return null;
-            return (
-              <CountryGroup
-                key={country}
-                country={country}
-                matches={matches}
-                oddsMap={oddsMap}
-              />
-            );
-          })}
+          {orderedLeagueIds.length > 0 ? (
+            orderedLeagueIds.map(lid => {
+              const matches = groupedByLeague[lid];
+              if (!matches?.length) return null;
+              const sample = matches[0];
+              return (
+                <LeagueGroup
+                  key={lid}
+                  leagueId={lid}
+                  leagueName={sample.league?.name || ''}
+                  leagueLogo={sample.league?.logo || ''}
+                  country={sample.league?.country || ''}
+                  matches={matches}
+                  oddsMap={oddsMap}
+                />
+              );
+            })
+          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+              <div>No games found with assigned odds</div>
+              <div style={{ fontSize: 12, marginTop: 8 }}>
+                Total matches: {filteredMatches.length} | All matches: {allMatches.length}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

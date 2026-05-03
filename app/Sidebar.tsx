@@ -491,6 +491,31 @@ function SidebarContent() {
                   {filteredItems.map((item, idx) => (
                     <SidebarSection key={idx} item={item} isLiveOpen={isLiveOpen} currentLeague={currentLeague} pathname={pathname} daysFilter={daysFilter} searchQuery={searchQuery} onClose={() => setMobileMenuOpen(false)} />
                   ))}
+                  
+                  {/* Standalone See All button */}
+                  {!isLiveOpen && (
+                    <div style={{ padding: '0 12px', marginTop: 8 }}>
+                      <Link 
+                        href="/fixtures?view=country" 
+                        style={{ 
+                          display: 'block', 
+                          textAlign: 'center', 
+                          background: '#222', 
+                          color: 'white', 
+                          padding: 12, 
+                          borderRadius: 8, 
+                          fontWeight: 600, 
+                          fontSize: 14, 
+                          textDecoration: 'none', 
+                          transition: '0.2s' 
+                        }} 
+                        className="sidebar-hover-item" 
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        See All Countries
+                      </Link>
+                    </div>
+                  )}
                 </>
               )}
             </div>
